@@ -2,4 +2,5 @@ LIBS = `pkg-config --libs opencv`
 GPP = g++ -ggdb
 
 convolution: convolution.cpp
-	$(GPP) -o convolution.exe convolution.cpp $(LIBS)
+	mkdir bin
+	$(GPP) -o bin/convolution convolution.cpp $(LIBS)

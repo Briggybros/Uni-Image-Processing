@@ -1,6 +1,4 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <opencv/cxcore.h>
+#include <opencv/cv.hpp>
 
 using namespace cv;
 

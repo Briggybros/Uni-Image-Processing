@@ -2,4 +2,5 @@ LIBS = `pkg-config --libs opencv`
 GPP = g++ -Wall
 
 coins: coins.cpp
-	$(GPP) -o coins.exe coins.cpp $(LIBS)
+	mkdir bin
+	$(GPP) -o bin/coins coins.cpp $(LIBS)

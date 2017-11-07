@@ -1,17 +1,5 @@
-/////////////////////////////////////////////////////////////////////////////
-//
-// COMS30121 - hello.cpp
-// TOPIC: create, save and display an image
-//
-// Getting-Started-File for OpenCV
-// University of Bristol
-//
-/////////////////////////////////////////////////////////////////////////////
-
 #include <stdio.h>
-#include <opencv/cv.h>        //you may need to
-#include <opencv/highgui.h>   //adjust import locations
-#include <opencv/cxcore.h>    //depending on your machine setup
+#include <opencv/cv.hpp>
 
 using namespace cv;
 
