@@ -6,5 +6,6 @@ PROG = face
 OPENCV = `pkg-config opencv --cflags --libs`
 LIBS = $(OPENCV)
 
-$(PROG):$(SRCS)
-	$(CC) $(CFLAGS) -o $(PROG) $(SRCS) $(LIBS)
+$(PROG): $(SRCS)
+	mkdir -p bin
+	$(CC) $(CFLAGS) -o bin/$(PROG) $(SRCS) $(LIBS)

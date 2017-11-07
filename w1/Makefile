@@ -10,7 +10,7 @@ display: display.cpp
 	$(GPP) -o bin/display display.cpp $(LIBS)
 
 draw: draw.cpp
-	mkdir bin
+	mkdir -p bin
 	$(GPP) -o bin/draw draw.cpp $(LIBS)
 
 hello: hello.cpp
