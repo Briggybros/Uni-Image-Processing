@@ -8,4 +8,5 @@ LIBS = $(OPENCV)
 
 $(PROG): $(SRCS)
 	mkdir -p bin
+	cp frontalface.xml bin/frontalface.xml
 	$(CC) $(CFLAGS) -o bin/$(PROG) $(SRCS) $(LIBS)
