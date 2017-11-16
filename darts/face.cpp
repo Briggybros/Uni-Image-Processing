@@ -79,12 +79,34 @@ void detectAndDisplay( Mat frame )
 }
 
 float jaccardIndex(BBox box1, BBox box2) {
-	int xOverlap = std::max(0, std::min(box1.x + box1.width, box2.x + box2.width) - std::max(box1.x, box2.x));
-    int yOverlap = std::max(0, std::min(box1.y + box1.height, box2.y + box2.height) - std::max(box1.y, box2.y));
-	int intersection = xOverlap * yOverlap;
+	float xOverlap = std::max(
+		0,
+		std::min(
+			box1.x + box1.width,
+			box2.x + box2.width
+		) - std::max(
+			box1.x, 
+			box2.x
+		)
+	);
 
-	int box1Size = box1.width * box1.height;
-	int box2Size = box2.width * box2.height;
+    float yOverlap = std::max(
+		0,
+		std::min(
+			box1.y + box1.height,
+			box2.y + box2.height
+		) - std::max(
+			box1.y,
+			box2.y
+		)
+	);
 
-	return (float)(((float)intersection) / (((float)box1Size + (float)box2Size) - (float)intersection));
+	float intersection = xOverlap * yOverlap;
+
+	float box1Size = box1.width * box1.height;
+	float box2Size = box2.width * box2.height;
+
+	float uni = (box1Size + box2Size) - intersection; // union is keyword in C++
+
+	return intersection / uni;
 }
