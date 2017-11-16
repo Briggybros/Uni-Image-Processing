@@ -19,8 +19,17 @@
 using namespace std;
 using namespace cv;
 
+/** Struct declarations **/
+typedef struct bbox {
+	int x;
+	int y;
+	int width;
+	int height;
+} BBox;
+
 /** Function Headers */
 void detectAndDisplay( Mat frame );
+float jaccardIndex(BBox box1, BBox box2);
 
 /** Global variables */
 String cascade_name = "dartcascade/cascade.xml";
@@ -67,4 +76,15 @@ void detectAndDisplay( Mat frame )
 		rectangle(frame, Point(faces[i].x, faces[i].y), Point(faces[i].x + faces[i].width, faces[i].y + faces[i].height), Scalar( 0, 255, 0 ), 2);
 	}
 
+}
+
+float jaccardIndex(BBox box1, BBox box2) {
+	int xOverlap = std::max(0, std::min(box1.x + box1.width, box2.x + box2.width) - std::max(box1.x, box2.x));
+    int yOverlap = std::max(0, std::min(box1.y + box1.height, box2.y + box2.height) - std::max(box1.y, box2.y));
+	int intersection = xOverlap * yOverlap;
+
+	int box1Size = box1.width * box1.height;
+	int box2Size = box2.width * box2.height;
+
+	return (float)(((float)intersection) / (((float)box1Size + (float)box2Size) - (float)intersection));
 }
