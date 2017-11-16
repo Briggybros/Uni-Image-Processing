@@ -7,6 +7,4 @@ OPENCV = `pkg-config opencv --cflags --libs`
 LIBS = $(OPENCV)
 
 $(PROG): $(SRCS)
-	mkdir -p bin
-	cp frontalface.xml bin/frontalface.xml
-	$(CC) $(CFLAGS) -o bin/$(PROG) $(SRCS) $(LIBS)
+	$(CC) $(CFLAGS) -o $(PROG) $(SRCS) $(LIBS)
