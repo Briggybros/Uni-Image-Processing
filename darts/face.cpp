@@ -19,17 +19,9 @@
 using namespace std;
 using namespace cv;
 
-/** Struct declarations **/
-typedef struct bbox {
-	int x;
-	int y;
-	int width;
-	int height;
-} BBox;
-
 /** Function Headers */
 void detectAndDisplay( Mat frame );
-float jaccardIndex(BBox box1, BBox box2);
+float jaccardIndex(Rect rect1, Rect rect2);
 
 /** Global variables */
 String cascade_name = "dartcascade/cascade.xml";
@@ -78,35 +70,16 @@ void detectAndDisplay( Mat frame )
 
 }
 
-float jaccardIndex(BBox box1, BBox box2) {
-	float xOverlap = std::max(
-		0,
-		std::min(
-			box1.x + box1.width,
-			box2.x + box2.width
-		) - std::max(
-			box1.x, 
-			box2.x
-		)
-	);
-
-    float yOverlap = std::max(
-		0,
-		std::min(
-			box1.y + box1.height,
-			box2.y + box2.height
-		) - std::max(
-			box1.y,
-			box2.y
-		)
-	);
+float jaccardIndex(Rect rect1, Rect rect2) {
+	float xOverlap = std::max(0, std::min(rect1.x + rect1.width, rect2.x + rect2.width) - std::max(rect1.x, rect2.x));
+    float yOverlap = std::max(0, std::min(rect1.y + rect1.height, rect2.y + rect2.height) - std::max(rect1.y,rect2.y));
 
 	float intersection = xOverlap * yOverlap;
 
-	float box1Size = box1.width * box1.height;
-	float box2Size = box2.width * box2.height;
+	float rect1Size = rect1.width * rect1.height;
+	float rect2Size = rect2.width * rect2.height;
 
-	float uni = (box1Size + box2Size) - intersection; // union is keyword in C++
+	float uni = (rect1Size + rect2Size) - intersection; // union is keyword in C++
 
 	return intersection / uni;
 }
