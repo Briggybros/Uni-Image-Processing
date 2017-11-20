@@ -74,6 +74,8 @@ float jaccardIndex(Rect rect1, Rect rect2) {
 	float xOverlap = std::max(0, std::min(rect1.x + rect1.width, rect2.x + rect2.width) - std::max(rect1.x, rect2.x));
     float yOverlap = std::max(0, std::min(rect1.y + rect1.height, rect2.y + rect2.height) - std::max(rect1.y,rect2.y));
 
+	if (xOverlap == 0 || yOverlap == 0) return 0;
+
 	float intersection = xOverlap * yOverlap;
 
 	float rect1Size = rect1.width * rect1.height;

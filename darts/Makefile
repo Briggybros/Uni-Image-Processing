@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -g
+CFLAGS = -g -O3
 SRCS = face.cpp
 PROG = face
 
