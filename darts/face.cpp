@@ -96,9 +96,9 @@ float f1(vector<Rect> detections, vector<Rect> groundTruths) {
 	int correctDetections = 0;
 	int boardsFound = 0;
 
-	for (int i = 0; i < (int)groundTruths.size; i++) {
+	for (int i = 0; i < (int)groundTruths.size(); i++) {
 		bool detected = false;
-		for (int j = 0; j < (int)detections.size; i++) {
+		for (int j = 0; j < (int)detections.size(); i++) {
 			if (jaccardIndex(groundTruths[i], detections[j]) > jaccardThreshold) {
 				detected = true;
 				correctDetections++;
@@ -110,12 +110,12 @@ float f1(vector<Rect> detections, vector<Rect> groundTruths) {
 		}
 	}
 
-	int incorrectDetections = (int)detections.size - correctDetections;
-	int boardsMissed = (int)groundTruths.size - boardsFound;
+	int incorrectDetections = (int)detections.size() - correctDetections;
+	int boardsMissed = (int)groundTruths.size() - boardsFound;
 
-	float tpr = (float)boardsFound/(float)groundTruths.size;
-	float fnr = (float)boardsMissed/(float)groundTruths.size;
-	float fpr = (float)incorrectDetections/(float)detections.size;
+	float tpr = (float)boardsFound/(float)groundTruths.size();
+	float fnr = (float)boardsMissed/(float)groundTruths.size();
+	float fpr = (float)incorrectDetections/(float)detections.size();
 
 	float precision = tpr/(tpr + fpr);
 	float recall = tpr/(tpr + fnr);
