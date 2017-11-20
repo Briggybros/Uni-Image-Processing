@@ -10,7 +10,6 @@
 #include <iostream>
 #include <stdio.h>
 
-
 #include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -41,6 +40,7 @@ const vector<vector<Rect>> groundTruths = {
 
 /** Function Headers */
 void detectAndDisplay( Mat frame );
+float f1(vector<Rect> detections);
 float jaccardIndex(Rect rect1, Rect rect2);
 
 /** Global variables */
@@ -88,6 +88,39 @@ void detectAndDisplay( Mat frame )
 		rectangle(frame, Point(faces[i].x, faces[i].y), Point(faces[i].x + faces[i].width, faces[i].y + faces[i].height), Scalar( 0, 255, 0 ), 2);
 	}
 
+}
+
+float f1(vector<Rect> detections, vector<Rect> groundTruths) {
+	const float jaccardThreshold = 0.9;
+
+	int correctDetections = 0;
+	int boardsFound = 0;
+
+	for (int i = 0; i < (int)groundTruths.size; i++) {
+		bool detected = false;
+		for (int j = 0; j < (int)detections.size; i++) {
+			if (jaccardIndex(groundTruths[i], detections[j]) > jaccardThreshold) {
+				detected = true;
+				correctDetections++;
+			}
+		}
+
+		if (detected) {
+			boardsFound++;
+		}
+	}
+
+	int incorrectDetections = (int)detections.size - correctDetections;
+	int boardsMissed = (int)groundTruths.size - boardsFound;
+
+	float tpr = (float)boardsFound/(float)groundTruths.size;
+	float fnr = (float)boardsMissed/(float)groundTruths.size;
+	float fpr = (float)incorrectDetections/(float)detections.size;
+
+	float precision = tpr/(tpr + fpr);
+	float recall = tpr/(tpr + fnr);
+
+	return 2 * ((precision * recall)/(precision + recall));
 }
 
 float jaccardIndex(Rect rect1, Rect rect2) {
