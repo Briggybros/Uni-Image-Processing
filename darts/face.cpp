@@ -19,6 +19,7 @@
 using namespace std;
 using namespace cv;
 
+/** Ground truths for all images */
 const vector<vector<Rect>> groundTruths = {
 	{Rect(0,0,0,0)},
 	{Rect(0,0,0,0)},
