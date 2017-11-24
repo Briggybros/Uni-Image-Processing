@@ -42,10 +42,13 @@ const vector<vector<Rect>> groundTruths = {
 void detectAndDisplay( Mat frame );
 float f1(vector<Rect> detections);
 float jaccardIndex(Rect rect1, Rect rect2);
+Mat cannyDetection(Mat image, int low_thresh, int kernel_size);
+Mat houghTransform(Mat image, int thresh);
 
 /** Global variables */
 String cascade_name = "dartcascade/cascade.xml";
 CascadeClassifier cascade;
+int ratio = 5; //used for canny edge detection = high/low
 
 
 /** @function main */
@@ -53,6 +56,7 @@ int main( int argc, const char** argv )
 {
     // 1. Read Input Image
 	Mat frame = imread(argv[1], CV_LOAD_IMAGE_COLOR);
+	Mat hough_image = imread(argv[1], CV_LOAD_IMAGE_COLOR);
 
 	// 2. Load the Strong Classifier in a structure called `Cascade'
 	if( !cascade.load( cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
@@ -63,7 +67,65 @@ int main( int argc, const char** argv )
 	// 4. Save Result Image
 	imwrite( "detected.jpg", frame );
 
+	//Hough Implementation
+	//First, create an image in which edges are detected
+	Mat canny = cannyDetection(hough_image, 60, 3);
+
+	imwrite( "edge_detected.jpg", canny);
+
+	Mat hough = houghTransform(canny, 100);
+
+	//Save output
+	imwrite( "hough_output.jpg", hough);
+
 	return 0;
+}
+
+//Input canny image and threshold
+Mat houghTransform( Mat image, int thresh){
+	vector<Vec2f> lines;
+	Mat output;
+	output.create(image.size(), image.type());
+	output = Scalar::all(0);
+
+	//output (grayscale), detected lines, resolution of R and theta, threshold
+	HoughLines(image, lines, 1, CV_PI/180, thresh, 0, 0);
+
+	//Display the detected lines
+	for(size_t i = 0; i < lines.size(); i++){
+		float rho = lines[i][0], theta = lines[i][1];
+		Point pt1, pt2;
+		double a = cos(theta), b = sin(theta);
+		double x0 = a*rho, y0 = b*rho;
+		pt1.x = cvRound(x0 + 1000*(-b));
+		pt1.y = cvRound(y0 + 1000*(a));
+		pt2.x = cvRound(x0 - 1000*(-b));
+		pt2.y = cvRound(y0 - 1000*(a));
+		line(output, pt1, pt2, Scalar(255,255,255), 1, CV_AA);
+	}
+	return output;
+}
+
+Mat cannyDetection( Mat image, int low_thresh, int kernel_size ) {
+
+	Mat gray_image, canny_out;
+
+	//Create a duplicate of image
+	canny_out.create( image.size(), image.type());
+
+	// Convert to grayscale
+	cvtColor(image, gray_image, CV_BGR2GRAY);
+	canny_out.create( gray_image.size(), gray_image.type());
+
+	//Canny edge detection: (in, out, low, high, kernel size)
+	//High threshold 3*low as suggested by Canny
+	Canny( gray_image, gray_image, low_thresh, ratio*low_thresh, kernel_size);
+
+	//Create result of edges displayed onto black background
+	canny_out = Scalar::all(0);
+	gray_image.copyTo(canny_out, gray_image);
+
+	return canny_out;
 }
 
 /** @function detectAndDisplay */
