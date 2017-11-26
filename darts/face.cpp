@@ -87,7 +87,7 @@ int main( int argc, const char** argv )
 	imwrite( "grad_dir.jpg", direction);
 
 	//Get Hough Space
-	Mat hough_out = hough(gradient, direction, 10);
+	Mat hough_out = hough(gradient, direction, 4);
 	imwrite( "hough_output.jpg", hough_out);
 
 	return 0;
@@ -115,13 +115,17 @@ void bumpCols(Mat input, int thresh){
 
 //Hough Space
 Mat hough(Mat mag, Mat dir, int t_range){
+	Mat H;
+	H.create(360, sqrt(mag.rows*mag.cols), mag.type());
+	cout << H.rows << " " << H.cols << "\n";
 	for (int i = 0; i < mag.rows; i++) {
 			for (int j = 0; j < mag.cols; j++) {
 				for (int t = 0; t < 180; t++){
 					double theta = t*CV_PI/180;
 					if(theta >= (dir.at<uchar>(i,j) - t_range) && theta <= (dir.at<uchar>(i,j) + t_range)){
-						int r = j*cos(theta) + i*sin(theta);
-						// H.at<uchar>(r, theta) += 1;
+						int r = i*cos(theta) + j*sin(theta);
+						// cout << r << "\n";
+						H.at<uchar>(theta, r) += 1;
 					}
 				}
 			}
