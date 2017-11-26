@@ -42,13 +42,15 @@ const vector<vector<Rect>> groundTruths = {
 void detectAndDisplay( Mat frame );
 float f1(vector<Rect> detections);
 float jaccardIndex(Rect rect1, Rect rect2);
-Mat cannyDetection(Mat image, int low_thresh, int kernel_size);
+void edgeDetection(Mat grad, Mat dir, Mat input, int scale, int delta, int thresh);
 Mat houghTransform(Mat image, int thresh);
+void bumpCols(Mat image, int thresh);
+Mat hough(Mat mag, Mat dir, int t_range);
 
 /** Global variables */
 String cascade_name = "dartcascade/cascade.xml";
 CascadeClassifier cascade;
-int ratio = 5; //used for canny edge detection = high/low
+int ratio = 4; //used for canny edge detection = high/low
 
 
 /** @function main */
@@ -59,7 +61,9 @@ int main( int argc, const char** argv )
 	Mat hough_image = imread(argv[1], CV_LOAD_IMAGE_COLOR);
 
 	// 2. Load the Strong Classifier in a structure called `Cascade'
-	if( !cascade.load( cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
+	if( !cascade.load( cascade_name ) ){
+		printf("--(!)Error loading\n"); return -1;
+	};
 
 	// 3. Detect Faces and Display Result
 	detectAndDisplay( frame );
@@ -68,17 +72,61 @@ int main( int argc, const char** argv )
 	imwrite( "detected.jpg", frame );
 
 	//Hough Implementation
-	//First, create an image in which edges are detected
-	Mat canny = cannyDetection(hough_image, 60, 3);
+	//Image preparation
+	bumpCols(hough_image, 130);
+	GaussianBlur(hough_image, hough_image, Size(3,3), 0, 0, BORDER_DEFAULT);
+	Mat gradient, direction;
+	cvtColor(hough_image, hough_image, CV_BGR2GRAY);
+	gradient.create(hough_image.size(), hough_image.type());
+	direction.create(hough_image.size(), hough_image.type());
 
-	imwrite( "edge_detected.jpg", canny);
+	//Edge detection
+	edgeDetection(gradient, direction, hough_image, 1, 0, 140);
 
-	Mat hough = houghTransform(canny, 100);
+	imwrite( "grad_mag.jpg", gradient);
+	imwrite( "grad_dir.jpg", direction);
 
-	//Save output
-	imwrite( "hough_output.jpg", hough);
+	//Get Hough Space
+	Mat hough_out = hough(gradient, direction, 10);
+	imwrite( "hough_output.jpg", hough_out);
 
 	return 0;
+}
+
+//Make red pixels black, and green pixels white.
+void bumpCols(Mat input, int thresh){
+	for (int i = 0; i < input.rows; i++) {
+			for (int j = 0; j < input.cols; j++) {
+					int green = input.at<Vec3b>(i, j)[1];
+					int red = input.at<Vec3b>(i, j)[2];
+					if(red > thresh){
+						input.at<Vec3b>(i, j)[0] = 255;
+						input.at<Vec3b>(i, j)[1] = 255;
+						input.at<Vec3b>(i, j)[2] = 255;
+					}
+					else if(thresh < green){
+						input.at<Vec3b>(i, j)[0] = 0;
+						input.at<Vec3b>(i, j)[1] = 0;
+						input.at<Vec3b>(i, j)[2] = 0;
+					}
+			}
+	}
+}
+
+//Hough Space
+Mat hough(Mat mag, Mat dir, int t_range){
+	for (int i = 0; i < mag.rows; i++) {
+			for (int j = 0; j < mag.cols; j++) {
+				for (int t = 0; t < 180; t++){
+					double theta = t*CV_PI/180;
+					if(theta >= (dir.at<uchar>(i,j) - t_range) && theta <= (dir.at<uchar>(i,j) + t_range)){
+						int r = j*cos(theta) + i*sin(theta);
+						// H.at<uchar>(r, theta) += 1;
+					}
+				}
+			}
+	}
+	return H;
 }
 
 //Input canny image and threshold
@@ -106,26 +154,42 @@ Mat houghTransform( Mat image, int thresh){
 	return output;
 }
 
-Mat cannyDetection( Mat image, int low_thresh, int kernel_size ) {
+void edgeDetection( Mat gradient, Mat direction, Mat input, int scale, int delta, int thresh ) {
 
-	Mat gray_image, canny_out;
+	Mat d_x, d_y, abs_x, abs_y;
 
-	//Create a duplicate of image
-	canny_out.create( image.size(), image.type());
+	//X Gradient
+	Sobel( input, d_x, CV_16S, 1, 0, 3, scale, delta, BORDER_DEFAULT);
+	//Y Gradient
+	Sobel( input, d_y, CV_16S, 0, 1, 3, scale, delta, BORDER_DEFAULT);
 
-	// Convert to grayscale
-	cvtColor(image, gray_image, CV_BGR2GRAY);
-	canny_out.create( gray_image.size(), gray_image.type());
+	//Convert results to CV_8U
+	convertScaleAbs( d_x, abs_x);
+	convertScaleAbs( d_y, abs_y);
 
-	//Canny edge detection: (in, out, low, high, kernel size)
-	//High threshold 3*low as suggested by Canny
-	Canny( gray_image, gray_image, low_thresh, ratio*low_thresh, kernel_size);
+	//Create gradient using absolute values instead of squaring
+	addWeighted(abs_x, 0.5, abs_y, 0.5, 0, gradient);
 
-	//Create result of edges displayed onto black background
-	canny_out = Scalar::all(0);
-	gray_image.copyTo(canny_out, gray_image);
+	//Threshold and calculate direction
+	for (int i = 0; i < gradient.rows; i++) {
+			for (int j = 0; j < gradient.cols; j++) {
+					//Thresholding
+					int z = gradient.at<uchar>(i, j);
+					if (z > thresh) gradient.at<uchar>(i, j) = 255;
+					else gradient.at<uchar>(i, j) = 0;
 
-	return canny_out;
+					//Direction stuff
+					/* probably wrong as using abs and not d*/
+          int x = d_x.at<short>(i, j);
+          int y = d_y.at<short>(i, j);
+					if (y <= 20) direction.at<uchar>(i, j) = 0;
+					else if (x == 0) direction.at<uchar>(i, j) = 90;
+					else {
+							int val = atan2(y, x)*180/CV_PI;
+							direction.at<uchar>(i, j) = (uchar)val;
+					}
+			}
+	}
 }
 
 /** @function detectAndDisplay */
