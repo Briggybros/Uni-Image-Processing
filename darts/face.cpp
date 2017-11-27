@@ -45,13 +45,13 @@ float jaccardIndex(Rect rect1, Rect rect2);
 void edgeDetection(Mat grad, Mat dir, Mat input, int scale, int delta, int thresh);
 Mat houghTransform(Mat image, int thresh);
 void bumpCols(Mat image, int thresh);
-Mat hough(Mat mag, Mat dir, int t_range);
+Mat hough(Mat mag, Mat dir);
+void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r);
 
 /** Global variables */
 String cascade_name = "dartcascade/cascade.xml";
 CascadeClassifier cascade;
-int ratio = 4; //used for canny edge detection = high/low
-
+int largestRadius = 115;
 
 /** @function main */
 int main( int argc, const char** argv )
@@ -86,9 +86,17 @@ int main( int argc, const char** argv )
 	imwrite( "grad_mag.jpg", gradient);
 	imwrite( "grad_dir.jpg", direction);
 
+	cout << "oh?";
+
+
 	//Get Hough Space
-	Mat hough_out = hough(gradient, direction, 4);
+	Mat hough_out = hough(gradient, direction);
 	imwrite( "hough_output.jpg", hough_out);
+	//Hough circles
+	Mat circles;
+	circles.create(gradient.size(), gradient.type());
+	houghCircles(circles, gradient, direction, 17, largestRadius);
+	imwrite( "hough_circles.jpg", circles);
 
 	return 0;
 }
@@ -114,23 +122,87 @@ void bumpCols(Mat input, int thresh){
 }
 
 //Hough Space
-Mat hough(Mat mag, Mat dir, int t_range){
+Mat hough(Mat mag, Mat dir){
+	//Initialise dimensions and center of image.
 	Mat H;
-	H.create(360, sqrt(mag.rows*mag.cols), mag.type());
+	int h = mag.rows, w = mag.cols;
+	int x0 = h/2;
+	int y0 = w/2;
+	double hough_h = ((sqrt(2.0) * (double)(h>w?h:w)) / 2.0);
+	H.create(mag.size(), mag.type());
+
 	cout << H.rows << " " << H.cols << "\n";
 	for (int i = 0; i < mag.rows; i++) {
 			for (int j = 0; j < mag.cols; j++) {
-				for (int t = 0; t < 180; t++){
-					double theta = t*CV_PI/180;
-					if(theta >= (dir.at<uchar>(i,j) - t_range) && theta <= (dir.at<uchar>(i,j) + t_range)){
-						int r = i*cos(theta) + j*sin(theta);
+				for (int t = 0; t < 180; t++) {
+					if(mag.at<uchar>(i, j) == 255){
+						double theta = t*CV_PI/180;
+						int r = (i-x0)*cos(theta) + (j-y0)*sin(theta);
 						// cout << r << "\n";
-						H.at<uchar>(theta, r) += 1;
+						H.at<uchar>(r, (int)theta) += 1;
 					}
 				}
 			}
 	}
 	return H;
+}
+
+int*** create3DArray(int x, int y, int z){
+	int ***array = new int**[x];
+	for (int i = 0; i<x; i++){
+		array[i] = new int*[y];
+		for(int j = 0; j<y; j++){
+			array[i][j] = new int[z];
+		}
+	}
+	return array;
+}
+
+void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
+	cout << "entered\n";
+	int height = mag.rows, width = mag.cols, depth = largestRadius - min_r;
+	int* circles;
+	circles = new int[width * height * depth]; //flat 3d array
+	for (int y = 0; y < mag.rows; y++) {
+		for (int x = 0; x < mag.cols; x++) {
+			if(mag.at<uchar>(y, x) == 255){
+				float t = dir.at<uchar>(y, x);
+				for (int r = min_r; r < max_r; r++){
+					//get circle centers
+					int x0 = x - r * cos(t*CV_PI/180);
+					int y0 = y - r * sin(t*CV_PI/180);
+					if ((x0 >= 0 && y0 >= 0) && (x0 < width && y0 < height)){
+						circles[x0 + width * (y0 + height * (r - min_r))] += 1;
+					}
+					x0 = x + r * cos(t*CV_PI/180);
+					y0 = y + r * sin(t*CV_PI/180);
+					if ((x0 >= 0 && y0 >= 0) && (x0 < width && y0 < height)){
+						circles[x0 + width * (y0 + height * (r - min_r))] += 1;
+					}
+				}
+			}
+		}
+	}
+	cout << "uhoh\n";
+	//Flatten 3d array into 2d.
+	int max = 0;
+	for (int y = 0; y < mag.rows; y++){
+		for (int x = 0; x < mag.cols; x++){
+			int sum = 0;
+			for (int r = 0; r < (largestRadius-min_r); r++) {
+				sum += circles[x + width * (y + height * r)];
+			}
+			int newVal = out.at<uchar>(y, x) + sum;
+			if(newVal > 255){
+				out.at<uchar>(y, x) = 255;
+			}
+			else {
+				out.at<uchar>(y, x) = newVal;
+			}
+		}
+		max++;
+	}
+	cout << max << " " << mag.rows;
 }
 
 //Input canny image and threshold
@@ -183,7 +255,6 @@ void edgeDetection( Mat gradient, Mat direction, Mat input, int scale, int delta
 					else gradient.at<uchar>(i, j) = 0;
 
 					//Direction stuff
-					/* probably wrong as using abs and not d*/
           int x = d_x.at<short>(i, j);
           int y = d_y.at<short>(i, j);
 					if (y <= 20) direction.at<uchar>(i, j) = 0;
