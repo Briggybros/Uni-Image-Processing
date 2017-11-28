@@ -52,7 +52,8 @@ void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r);
 String cascade_name = "dartcascade/cascade.xml";
 CascadeClassifier cascade;
 int largestRadius = 115;
-int CIRCLE_THRESHOLD = 150;
+int CIRCLE_THRESHOLD = 150; // default threshold value
+int MAX_HOUGH = 0;
 
 /** @function main */
 int main( int argc, const char** argv )
@@ -78,14 +79,16 @@ int main( int argc, const char** argv )
 	Mat houghLab = imread(argv[1], CV_LOAD_IMAGE_COLOR);
 	//Split image into separate layers
 	split(houghLab, splitH);
+	Mat tests = splitH[2].clone();
+	// cvtColor(houghLab, tests, CV_BGR2GRAY);
 	imwrite( "b.jpg", splitH[2]); //R channel makes the dartboards very clear
-	GaussianBlur(splitH[2], splitH[2], Size(3,3), 0, 0, BORDER_DEFAULT);
+	GaussianBlur(tests, tests, Size(3,3), 0, 0, BORDER_DEFAULT);
 	Mat gradient, direction;
-	gradient.create(splitH[2].size(), splitH[2].type());
-	direction.create(splitH[2].size(), splitH[2].type());
+	gradient.create(tests.size(), tests.type());
+	direction.create(tests.size(), tests.type());
 
 	//Edge detection
-	edgeDetection(gradient, direction, splitH[2], 1, 0, 130);
+	edgeDetection(gradient, direction, tests, 1, 0, 130);
 
 	imwrite( "grad_mag.jpg", gradient);
 	imwrite( "grad_dir.jpg", direction);
@@ -136,7 +139,6 @@ Mat hough(Mat mag, Mat dir){
 	double hough_h = ((sqrt(2.0) * (double)(h>w?h:w)) / 2.0);
 	H.create(mag.size(), mag.type());
 
-	cout << H.rows << " " << H.cols << "\n";
 	for (int i = 0; i < mag.rows; i++) {
 			for (int j = 0; j < mag.cols; j++) {
 				for (int t = 0; t < 180; t++) {
@@ -188,24 +190,24 @@ void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
 	}
 
 	//Flatten 3d array into 2d.
-	int max = 0;
 	for (int y = 0; y < mag.rows; y++){
 		for (int x = 0; x < mag.cols; x++){
 			int sum = 0;
 			for (int r = 0; r < (largestRadius-min_r); r++) {
 				sum += circles[x][y][r];
 			}
-			int newVal = out.at<uchar>(y, x) + sum;
-			if(newVal > 255){
-				out.at<uchar>(y, x) = 255;
+			if(sum > 255){
+				sum = 255;
 			}
-			else {
-				out.at<uchar>(y, x) = newVal;
+			out.at<uchar>(y, x) = sum;
+			if(sum > MAX_HOUGH && x > 3){
+				MAX_HOUGH = sum;
 			}
 		}
-		max++;
 	}
-	cout << max << " " << mag.rows;
+	if(MAX_HOUGH < CIRCLE_THRESHOLD){
+		CIRCLE_THRESHOLD = MAX_HOUGH*0.9;
+	}
 }
 
 //Input canny image and threshold
@@ -302,7 +304,12 @@ void detectAndDisplay( Mat frame, bool improved, Mat hough)
 	}
 
     // 3. Print number of Faces found
-	std::cout << faces.size() << std::endl;
+	if(improved){
+		std::cout << "Detected faces (Improved): " << faces.size() << std::endl;
+	}
+	else {
+		std::cout << "Detected faces: " << faces.size() << std::endl;
+	}
 
     // 4. Draw box around faces found
 	for( int i = 0; i < faces.size(); i++ )
