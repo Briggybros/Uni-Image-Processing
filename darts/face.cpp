@@ -205,7 +205,7 @@ void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
 			}
 		}
 	}
-	if(MAX_HOUGH < CIRCLE_THRESHOLD){
+	if(MAX_HOUGH < CIRCLE_THRESHOLD || MAX_HOUGH > (CIRCLE_THRESHOLD + 50)){
 		CIRCLE_THRESHOLD = MAX_HOUGH*0.9;
 	}
 }
