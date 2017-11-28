@@ -39,7 +39,7 @@ const vector<vector<Rect>> groundTruths = {
 };
 
 /** Function Headers */
-void detectAndDisplay( Mat frame );
+void detectAndDisplay( Mat frame, bool improved, Mat hough );
 float f1(vector<Rect> detections);
 float jaccardIndex(Rect rect1, Rect rect2);
 void edgeDetection(Mat grad, Mat dir, Mat input, int scale, int delta, int thresh);
@@ -52,13 +52,13 @@ void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r);
 String cascade_name = "dartcascade/cascade.xml";
 CascadeClassifier cascade;
 int largestRadius = 115;
+int CIRCLE_THRESHOLD = 150;
 
 /** @function main */
 int main( int argc, const char** argv )
 {
     // 1. Read Input Image
 	Mat frame = imread(argv[1], CV_LOAD_IMAGE_COLOR);
-	Mat hough_image = imread(argv[1], CV_LOAD_IMAGE_COLOR);
 
 	// 2. Load the Strong Classifier in a structure called `Cascade'
 	if( !cascade.load( cascade_name ) ){
@@ -66,28 +66,29 @@ int main( int argc, const char** argv )
 	};
 
 	// 3. Detect Faces and Display Result
-	detectAndDisplay( frame );
+	detectAndDisplay( frame, 0, frame );
 
 	// 4. Save Result Image
 	imwrite( "detected.jpg", frame );
 
 	//Hough Implementation
+
 	//Image preparation
-	bumpCols(hough_image, 130);
-	GaussianBlur(hough_image, hough_image, Size(3,3), 0, 0, BORDER_DEFAULT);
+	Mat splitH[3];
+	Mat houghLab = imread(argv[1], CV_LOAD_IMAGE_COLOR);
+	//Split image into separate layers
+	split(houghLab, splitH);
+	imwrite( "b.jpg", splitH[2]); //R channel makes the dartboards very clear
+	GaussianBlur(splitH[2], splitH[2], Size(3,3), 0, 0, BORDER_DEFAULT);
 	Mat gradient, direction;
-	cvtColor(hough_image, hough_image, CV_BGR2GRAY);
-	gradient.create(hough_image.size(), hough_image.type());
-	direction.create(hough_image.size(), hough_image.type());
+	gradient.create(splitH[2].size(), splitH[2].type());
+	direction.create(splitH[2].size(), splitH[2].type());
 
 	//Edge detection
-	edgeDetection(gradient, direction, hough_image, 1, 0, 140);
+	edgeDetection(gradient, direction, splitH[2], 1, 0, 130);
 
 	imwrite( "grad_mag.jpg", gradient);
 	imwrite( "grad_dir.jpg", direction);
-
-	cout << "oh?";
-
 
 	//Get Hough Space
 	Mat hough_out = hough(gradient, direction);
@@ -97,6 +98,10 @@ int main( int argc, const char** argv )
 	circles.create(gradient.size(), gradient.type());
 	houghCircles(circles, gradient, direction, 17, largestRadius);
 	imwrite( "hough_circles.jpg", circles);
+
+	//Detect and display improved detector
+	detectAndDisplay(houghLab, 1, circles);
+	imwrite("detected2.jpg", houghLab);
 
 	return 0;
 }
@@ -159,10 +164,8 @@ int*** create3DArray(int x, int y, int z){
 }
 
 void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
-	cout << "entered\n";
 	int height = mag.rows, width = mag.cols, depth = largestRadius - min_r;
-	int* circles;
-	circles = new int[width * height * depth]; //flat 3d array
+	int*** circles = create3DArray(width, height, depth);
 	for (int y = 0; y < mag.rows; y++) {
 		for (int x = 0; x < mag.cols; x++) {
 			if(mag.at<uchar>(y, x) == 255){
@@ -172,25 +175,25 @@ void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
 					int x0 = x - r * cos(t*CV_PI/180);
 					int y0 = y - r * sin(t*CV_PI/180);
 					if ((x0 >= 0 && y0 >= 0) && (x0 < width && y0 < height)){
-						circles[x0 + width * (y0 + height * (r - min_r))] += 1;
+						circles[x0][y0][(r - min_r)] += 1;
 					}
 					x0 = x + r * cos(t*CV_PI/180);
 					y0 = y + r * sin(t*CV_PI/180);
 					if ((x0 >= 0 && y0 >= 0) && (x0 < width && y0 < height)){
-						circles[x0 + width * (y0 + height * (r - min_r))] += 1;
+						circles[x0][y0][(r - min_r)] += 1;
 					}
 				}
 			}
 		}
 	}
-	cout << "uhoh\n";
+
 	//Flatten 3d array into 2d.
 	int max = 0;
 	for (int y = 0; y < mag.rows; y++){
 		for (int x = 0; x < mag.cols; x++){
 			int sum = 0;
 			for (int r = 0; r < (largestRadius-min_r); r++) {
-				sum += circles[x + width * (y + height * r)];
+				sum += circles[x][y][r];
 			}
 			int newVal = out.at<uchar>(y, x) + sum;
 			if(newVal > 255){
@@ -268,7 +271,7 @@ void edgeDetection( Mat gradient, Mat direction, Mat input, int scale, int delta
 }
 
 /** @function detectAndDisplay */
-void detectAndDisplay( Mat frame )
+void detectAndDisplay( Mat frame, bool improved, Mat hough)
 {
 	std::vector<Rect> faces;
 	Mat frame_gray;
@@ -279,6 +282,24 @@ void detectAndDisplay( Mat frame )
 
 	// 2. Perform Viola-Jones Object Detection
 	cascade.detectMultiScale( frame_gray, faces, 1.1, 1, 0|CV_HAAR_SCALE_IMAGE, Size(50, 50), Size(500,500) );
+
+	if( improved ){
+		std::vector<Rect> newFaces;
+		for (int i = 0; i<faces.size(); i++){
+			int width = faces[i].width / 2;
+			int height = faces[i].height / 2;
+			int x0 = faces[i].x + (width/2);
+			int y0 = faces[i].y + (height/2);
+			bool center = false;
+			for (int x = x0; x<(width + x0); x++){
+				for (int y = y0; y<(height + y0); y++){
+					if(hough.at<uchar>(y, x) > CIRCLE_THRESHOLD) center = true;
+				}
+			}
+			if(center) newFaces.push_back(faces[i]);
+		}
+		faces = newFaces;
+	}
 
     // 3. Print number of Faces found
 	std::cout << faces.size() << std::endl;
