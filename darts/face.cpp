@@ -45,7 +45,6 @@ float jaccardIndex(Rect rect1, Rect rect2);
 void edgeDetection(Mat grad, Mat dir, Mat input, int scale, int delta, int thresh);
 Mat houghTransform(Mat image, int thresh);
 void bumpCols(Mat image, int thresh);
-Mat hough(Mat mag, Mat dir);
 void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r);
 
 /** Global variables */
@@ -79,7 +78,8 @@ int main( int argc, const char** argv )
 	Mat houghLab = imread(argv[1], CV_LOAD_IMAGE_COLOR);
 	//Split image into separate layers
 	split(houghLab, splitH);
-	Mat tests = splitH[2].clone();
+	Mat tests;
+	tests = splitH[2].clone();
 	// cvtColor(houghLab, tests, CV_BGR2GRAY);
 	imwrite( "b.jpg", splitH[2]); //R channel makes the dartboards very clear
 	GaussianBlur(tests, tests, Size(3,3), 0, 0, BORDER_DEFAULT);
@@ -93,9 +93,6 @@ int main( int argc, const char** argv )
 	imwrite( "grad_mag.jpg", gradient);
 	imwrite( "grad_dir.jpg", direction);
 
-	//Get Hough Space
-	Mat hough_out = hough(gradient, direction);
-	imwrite( "hough_output.jpg", hough_out);
 	//Hough circles
 	Mat circles;
 	circles.create(gradient.size(), gradient.type());
@@ -127,31 +124,6 @@ void bumpCols(Mat input, int thresh){
 					}
 			}
 	}
-}
-
-//Hough Space
-Mat hough(Mat mag, Mat dir){
-	//Initialise dimensions and center of image.
-	Mat H;
-	int h = mag.rows, w = mag.cols;
-	int x0 = h/2;
-	int y0 = w/2;
-	double hough_h = ((sqrt(2.0) * (double)(h>w?h:w)) / 2.0);
-	H.create(mag.size(), mag.type());
-
-	for (int i = 0; i < mag.rows; i++) {
-			for (int j = 0; j < mag.cols; j++) {
-				for (int t = 0; t < 180; t++) {
-					if(mag.at<uchar>(i, j) == 255){
-						double theta = t*CV_PI/180;
-						int r = (i-x0)*cos(theta) + (j-y0)*sin(theta);
-						// cout << r << "\n";
-						H.at<uchar>(r, (int)theta) += 1;
-					}
-				}
-			}
-	}
-	return H;
 }
 
 int*** create3DArray(int x, int y, int z){
@@ -206,33 +178,8 @@ void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
 		}
 	}
 	if(MAX_HOUGH < CIRCLE_THRESHOLD || MAX_HOUGH > (CIRCLE_THRESHOLD + 50)){
-		CIRCLE_THRESHOLD = MAX_HOUGH*0.9;
+		CIRCLE_THRESHOLD = MAX_HOUGH*0.8;
 	}
-}
-
-//Input canny image and threshold
-Mat houghTransform( Mat image, int thresh){
-	vector<Vec2f> lines;
-	Mat output;
-	output.create(image.size(), image.type());
-	output = Scalar::all(0);
-
-	//output (grayscale), detected lines, resolution of R and theta, threshold
-	HoughLines(image, lines, 1, CV_PI/180, thresh, 0, 0);
-
-	//Display the detected lines
-	for(size_t i = 0; i < lines.size(); i++){
-		float rho = lines[i][0], theta = lines[i][1];
-		Point pt1, pt2;
-		double a = cos(theta), b = sin(theta);
-		double x0 = a*rho, y0 = b*rho;
-		pt1.x = cvRound(x0 + 1000*(-b));
-		pt1.y = cvRound(y0 + 1000*(a));
-		pt2.x = cvRound(x0 - 1000*(-b));
-		pt2.y = cvRound(y0 - 1000*(a));
-		line(output, pt1, pt2, Scalar(255,255,255), 1, CV_AA);
-	}
-	return output;
 }
 
 void edgeDetection( Mat gradient, Mat direction, Mat input, int scale, int delta, int thresh ) {
