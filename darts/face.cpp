@@ -43,7 +43,7 @@ void detectAndDisplay( Mat frame, bool improved, Mat hough );
 float f1(vector<Rect> detections);
 float jaccardIndex(Rect rect1, Rect rect2);
 void edgeDetection(Mat grad, Mat dir, Mat input, int scale, int delta, int thresh);
-Mat houghTransform(Mat image, int thresh);
+void houghLines(Mat image, Mat grad);
 void bumpCols(Mat image, int thresh);
 void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r);
 
@@ -53,6 +53,7 @@ CascadeClassifier cascade;
 int largestRadius = 115;
 int CIRCLE_THRESHOLD = 150; // default threshold value
 int MAX_HOUGH = 0;
+int HOUGH_THRESHOLD = 150;
 
 /** @function main */
 int main( int argc, const char** argv )
@@ -88,7 +89,7 @@ int main( int argc, const char** argv )
 	direction.create(tests.size(), tests.type());
 
 	//Edge detection
-	edgeDetection(gradient, direction, tests, 1, 0, 130);
+	edgeDetection(gradient, direction, tests, 1, 0, 140);
 
 	imwrite( "grad_mag.jpg", gradient);
 	imwrite( "grad_dir.jpg", direction);
@@ -98,6 +99,13 @@ int main( int argc, const char** argv )
 	circles.create(gradient.size(), gradient.type());
 	houghCircles(circles, gradient, direction, 17, largestRadius);
 	imwrite( "hough_circles.jpg", circles);
+
+	//Hough lines
+	Mat lines;
+	lines.create(gradient.size(), gradient.type());
+	lines = Scalar::all(0); //was getting odd noise on empty image.
+	houghLines(lines, gradient);
+	imwrite( "hough_lines.jpg", lines);
 
 	//Detect and display improved detector
 	detectAndDisplay(houghLab, 1, circles);
@@ -135,6 +143,23 @@ int*** create3DArray(int x, int y, int z){
 		}
 	}
 	return array;
+}
+
+void houghLines(Mat out, Mat mag){
+	vector<Vec2f> lines;
+	HoughLines(mag, lines, 1, CV_PI/180, HOUGH_THRESHOLD, 0, 0);
+
+	for(int i = 0; i < lines.size(); i++){
+		float rho = lines[i][0], theta = lines[i][1];
+		Point pt1, pt2;
+		double a = cos(theta), b = sin(theta);
+		double x0 = a*rho, y0 = b*rho;
+		pt1.x = cvRound(x0 + 1000*(-b));
+	  pt1.y = cvRound(y0 + 1000*(a));
+	  pt2.x = cvRound(x0 - 1000*(-b));
+	  pt2.y = cvRound(y0 - 1000*(a));
+	  line( out, pt1, pt2, Scalar(255), 1, CV_AA);
+	}
 }
 
 void houghCircles(Mat out, Mat mag, Mat dir, int min_r, int max_r){
