@@ -286,15 +286,8 @@ float f1(vector<Rect> detections, vector<Rect> groundTruths) {
 		}
 	}
 
-	int incorrectDetections = (int)detections.size() - correctDetections;
-	int boardsMissed = (int)groundTruths.size() - boardsFound;
-
-	float tpr = (float)boardsFound/(float)groundTruths.size();
-	float fnr = (float)boardsMissed/(float)groundTruths.size();
-	float fpr = (float)incorrectDetections/(float)detections.size();
-
-	float precision = tpr/(tpr + fpr);
-	float recall = tpr/(tpr + fnr);
+	float precision = (float)boardsFound/(float)(detections.size() - correctDetections);
+	float recall = (float)boardsFound/(float)groundTruths.size();
 
 	return 2 * ((precision * recall)/(precision + recall));
 }
