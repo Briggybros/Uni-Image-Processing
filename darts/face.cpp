@@ -53,7 +53,7 @@ CascadeClassifier cascade;
 int largestRadius = 115;
 int CIRCLE_THRESHOLD = 150; // default threshold value
 int MAX_HOUGH = 0;
-int HOUGH_THRESHOLD = 150;
+int HOUGH_THRESHOLD = 130;
 
 /** @function main */
 int main( int argc, const char** argv )
@@ -77,6 +77,7 @@ int main( int argc, const char** argv )
 	//Image preparation
 	Mat splitH[3];
 	Mat houghLab = imread(argv[1], CV_LOAD_IMAGE_COLOR);
+
 	//Split image into separate layers
 	split(houghLab, splitH);
 	Mat tests;
@@ -97,6 +98,7 @@ int main( int argc, const char** argv )
 	//Hough circles
 	Mat circles;
 	circles.create(gradient.size(), gradient.type());
+	circles = Scalar::all(0);
 	houghCircles(circles, gradient, direction, 17, largestRadius);
 	imwrite( "hough_circles.jpg", circles);
 
